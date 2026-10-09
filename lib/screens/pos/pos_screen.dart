@@ -6,6 +6,7 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/module_provider.dart';
 import '../../models/product.dart';
 import '../../models/sale_ticket.dart';
+import '../../data/tiendita_dataset.dart';
 import 'widgets/numeric_keypad.dart';
 import 'widgets/change_dialog.dart';
 import 'widgets/receipt_dialog.dart';
@@ -47,22 +48,146 @@ class _PosScreenState extends State<PosScreen> {
     final moduleProvider = context.read<ModuleProvider>();
     if (!moduleProvider.isUnlocked('barcode_scanner')) {
       _showModuleLockedDialog('Lector de Códigos de Barra', 'barcode_scanner', 99.0);
-    } else {
-      // Simula escaneo exitoso de un producto común
-      final inv = context.read<InventoryProvider>();
-      final coca = inv.findByBarcode('7501055300075');
-      if (coca != null) {
-        context.read<PosProvider>().addProduct(coca);
-        HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Escaneado: ${coca.name} - \$${coca.price.toStringAsFixed(2)}'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: const Color(0xFF059669),
-          ),
-        );
-      }
+      return;
     }
+
+    final codeCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_scanner, color: Color(0xFF4F46E5)),
+            SizedBox(width: 8),
+            Text('Escanear Código de Barras', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Ingresa el código o usa tu pistola lectora USB:', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
+            const SizedBox(height: 8),
+            TextField(
+              controller: codeCtrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Ej. 7501055300075',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onSubmitted: (code) {
+                Navigator.pop(ctx);
+                _processBarcode(code.trim());
+              },
+            ),
+            const SizedBox(height: 12),
+            const Text('Pruebas rápidas (artículos comunes):', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  label: const Text('🥤 Coca 600ml', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501055300075');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🧀 Doritos 58g', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501011165432');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🍞 Pan Bimbo', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501000100011');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🥛 Leche Lala', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501020511122');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🍜 Maruchan', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501055307777');
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _processBarcode(codeCtrl.text.trim());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
+            child: const Text('Escanear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _processBarcode(String barcode) {
+    if (barcode.isEmpty) return;
+    final inv = context.read<InventoryProvider>();
+    final pos = context.read<PosProvider>();
+
+    // 1. Buscar en inventario actual
+    final existing = inv.findByBarcode(barcode);
+    if (existing != null) {
+      pos.addProduct(existing);
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Escaneado: ${existing.name} - \$${existing.price.toStringAsFixed(2)}'),
+          duration: const Duration(seconds: 1),
+          backgroundColor: const Color(0xFF059669),
+        ),
+      );
+      return;
+    }
+
+    // 2. Si no está en inventario, buscar en el catálogo maestro Eleventa
+    final masterMatch = findInTienditaCatalogByBarcode(barcode);
+    if (masterMatch != null) {
+      inv.addProduct(masterMatch);
+      pos.addProduct(masterMatch);
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✨ Encontrado en catálogo maestro y agregado: ${masterMatch.name} (\$${masterMatch.price.toStringAsFixed(2)})'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: const Color(0xFF4F46E5),
+        ),
+      );
+      return;
+    }
+
+    // 3. No encontrado
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Código "$barcode" no encontrado en el inventario ni en catálogo maestro.'),
+        backgroundColor: const Color(0xFFDC2626),
+      ),
+    );
   }
 
   void _onProductTapped(Product product) {
@@ -299,6 +424,33 @@ class _PosScreenState extends State<PosScreen> {
                         color: const Color(0xFFF8FAFC),
                         child: Column(
                           children: [
+                            // Barra de búsqueda rápida en POS
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                              child: SizedBox(
+                                height: 38,
+                                child: TextField(
+                                  onChanged: inv.setSearchQuery,
+                                  decoration: InputDecoration(
+                                    hintText: 'Buscar producto o código...',
+                                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                                    prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
                             // Selector de Categorías
                             SizedBox(
                               height: 44,
