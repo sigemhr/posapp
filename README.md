@@ -50,28 +50,40 @@ lib/
 ├── core/
 │   └── theme/
 │       └── app_theme.dart          # Tema Material 3, Plus Jakarta Sans y alto contraste
+├── data/
+│   └── tiendita_dataset.dart       # Catálogo maestro de +140 artículos estilo Eleventa con EAN-13
 ├── models/
 │   ├── product.dart                # Modelo de producto (código de barras, peso/granel, stock, costo)
 │   ├── cart_item.dart              # Artículo en el ticket con cálculo de subtotal
 │   ├── sale_ticket.dart            # Ticket de venta finalizado (folio, método de cobro, cambio)
+│   ├── customer.dart               # Modelo de cliente de la libreta de fiado
+│   ├── credit_payment.dart         # Registro de abono a cuenta corriente
 │   └── app_module.dart             # Catálogo de módulos desbloqueables y precios
 ├── providers/
 │   ├── pos_provider.dart           # Motor del POS (tickets en espera, teclado numérico, cobro)
-│   ├── inventory_provider.dart     # Catálogo con 16 productos mexicanos precargados
+│   ├── inventory_provider.dart     # Inventario, filtros, stock y merge con catálogo maestro
+│   ├── customer_provider.dart      # Gestión de clientes, deudas y abonos
 │   └── module_provider.dart        # Estado de módulos desbloqueados y persistencia
-└── screens/
-    ├── home_screen.dart            # Navegación principal (Caja, Inventario, Módulos, Corte Z)
-    ├── pos/
-    │   ├── pos_screen.dart         # Pantalla táctil de cobro rápido
-    │   └── widgets/
-    │       ├── numeric_keypad.dart # Teclado táctil ergonómico para el pulgar
-    │       ├── change_dialog.dart  # Modal de cambio con billetes mexicanos y fiado
-    │       ├── receipt_dialog.dart # Ticket térmico simulado con envío a WhatsApp
-    │       └── ad_banner_widget.dart # Banner de anuncios del nivel gratuito
-    ├── inventory/
-    │   └── inventory_screen.dart   # Búsqueda, catálogo y alta de nuevos productos
-    ├── modules/
-    │   └── modules_screen.dart     # Tienda de desbloqueos con pago único
-    └── reports/
-        └── reports_screen.dart     # Corte Z de caja con desglose de efectivo, tarjetas y fiados
+├── screens/
+│   ├── home_screen.dart            # Navegación principal (Caja, Inventario, Libreta, Módulos, Corte Z)
+│   ├── pos/
+│   │   ├── pos_screen.dart         # Pantalla táctil de cobro con búsqueda rápida y lector USB
+│   │   └── widgets/
+│   │       ├── numeric_keypad.dart # Teclado táctil ergonómico para el pulgar
+│   │       ├── change_dialog.dart  # Modal de cambio con billetes mexicanos y fiado
+│   │       ├── receipt_dialog.dart # Ticket térmico simulado con envío a WhatsApp
+│   │       └── ad_banner_widget.dart # Banner de anuncios del nivel gratuito
+│   ├── inventory/
+│   │   └── inventory_screen.dart   # Búsqueda, botón Catálogo Eleventa y alta con autocompletado
+│   ├── credit/
+│   │   └── credit_book_screen.dart # Libreta de fiado digital y abonos
+│   ├── modules/
+│   │   └── modules_screen.dart     # Tienda de desbloqueos con pago único
+│   └── reports/
+│       └── reports_screen.dart     # Corte Z de caja con desglose de efectivo, tarjetas y fiados
+└── services/
+    └── storage_service.dart        # Persistencia local (SharedPreferences) y migración automática v1 -> v2
 ```
+
+> 📄 **Documentación para Asistentes de IA**: Consulta [`CLAUDE.md`](file:///c:/Users/Alexis%20Duarte/Desktop/puntozen_pos/CLAUDE.md) para una guía detallada del flujo de datos, convenciones y arquitectura técnica del proyecto.
+
