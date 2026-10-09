@@ -92,7 +92,17 @@ puntozen_pos/
 - **Autocompletado en Alta de Producto**:
   - Al ingresar o escanear un código de barras en el formulario de nuevo producto (`inventory_screen.dart`), el sistema busca en el catálogo maestro y autorellena: nombre, precio sugerido, costo de compra, categoría, emoji y si es a granel.
 
-### C. Pantalla de Cobro POS (`lib/screens/pos/pos_screen.dart`)
+### C. Pantalla de Cobro POS Responsiva (`lib/screens/pos/pos_screen.dart`)
+- **Diseño Adaptativo Móvil vs Tablet (`isMobile < 700px`)**:
+  - **En Celulares (`< 700px`)**: 
+    - Se elimina la división horizontal forzada en dos columnas estrechas.
+    - Se implementa una navegación por pestañas optimizada para una sola mano: `[🛍️ Catálogo]`, `[🧾 Ticket (X)]`, `[🔢 Teclado]`.
+    - **Catálogo a ancho completo**: Tarjetas legibles con espacio táctil holgado, búsqueda rápida y filtros.
+    - **Barra Flotante de Cobro**: Al agregar artículos, aparece un pill flotante inferior (`🛒 3 arts • $65.00` | `Ver Ticket` | `Cobrar`) para cobrar rápidamente sin salir del catálogo.
+    - **Ticket a ancho completo**: Lista espaciosa con botones grandes de cantidad `[-]` y `[+]`, desglose de subtotales y botón gigante de cobro.
+    - **Teclado Táctil a ancho completo**: Accesos directos a cremería/granel y venta común sin robar espacio vertical al catálogo.
+  - **En Tablets y Desktop (`>= 700px`)**:
+    - Conserva la vista dual dividida (*split view*): Catálogo a la izquierda (`flex: 6`), Ticket en tiempo real a la derecha (`flex: 5`) y Teclado Numérico fijo al fondo.
 - **Multi-Ticket**: Manejo de `Ticket 1` y `Ticket 2 (En Espera)` mediante `PosProvider.switchTicketTab(index)`.
 - **Buscador en Tiempo Real**: Input de búsqueda sobre los filtros de categoría para encontrar cualquier producto rápidamente.
 - **Lector de Código de Barras**:

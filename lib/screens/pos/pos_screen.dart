@@ -369,23 +369,26 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  int _mobileTab = 0; // 0: Catálogo, 1: Ticket, 2: Teclado/Granel
+
   @override
   Widget build(BuildContext context) {
     final pos = context.watch<PosProvider>();
     final inv = context.watch<InventoryProvider>();
     final cart = pos.currentCart;
+    final isMobile = MediaQuery.of(context).size.width < 700;
 
     return Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Abarrotes & Tiendita PuntoZen',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            Text(
+              isMobile ? 'PuntoZen POS' : 'Abarrotes & Tiendita PuntoZen',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
             ),
             Text(
-              'Ventas hoy: \$${pos.todayTotalSales.toStringAsFixed(2)} (${pos.todayTicketsCount} tickets)',
+              'Hoy: \$${pos.todayTotalSales.toStringAsFixed(2)} (${pos.todayTicketsCount} tickets)',
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF059669)),
             ),
           ],
@@ -404,281 +407,793 @@ class _PosScreenState extends State<PosScreen> {
               child: const Icon(Icons.qr_code_scanner, color: Color(0xFF4F46E5), size: 22),
             ),
           ),
-          // Alternar entre Catálogo o Ticket grande
-          IconButton(
-            tooltip: 'Alternar Vista',
-            onPressed: () => setState(() => _showCatalog = !_showCatalog),
-            icon: Icon(_showCatalog ? Icons.view_sidebar_outlined : Icons.grid_view_rounded),
-          ),
+          if (!isMobile)
+            IconButton(
+              tooltip: 'Alternar Vista',
+              onPressed: () => setState(() => _showCatalog = !_showCatalog),
+              icon: Icon(_showCatalog ? Icons.view_sidebar_outlined : Icons.grid_view_rounded),
+            ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(42),
+          preferredSize: Size.fromHeight(isMobile ? 86 : 42),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             color: const Color(0xFFF1F5F9),
-            child: Row(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTicketTab(0, 'Ticket 1', pos.activeTicketIndex == 0),
-                const SizedBox(width: 8),
-                _buildTicketTab(1, 'Ticket 2 (En Espera)', pos.activeTicketIndex == 1),
-                const Spacer(),
-                if (cart.isNotEmpty)
-                  InkWell(
-                    onTap: () => pos.clearCurrentCart(),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 16, color: Color(0xFFDC2626)),
-                        SizedBox(width: 4),
-                        Text('Vaciar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
-                      ],
-                    ),
+                // Selector de Ticket 1 / Ticket 2
+                Row(
+                  children: [
+                    _buildTicketTab(0, 'Ticket 1', pos.activeTicketIndex == 0),
+                    const SizedBox(width: 8),
+                    _buildTicketTab(1, 'Ticket 2 (En Espera)', pos.activeTicketIndex == 1),
+                    const Spacer(),
+                    if (cart.isNotEmpty)
+                      InkWell(
+                        onTap: () => pos.clearCurrentCart(),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 16, color: Color(0xFFDC2626)),
+                            SizedBox(width: 4),
+                            Text('Vaciar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                // En Celulares: Barra de Pestañas Adaptativa (Catálogo / Ticket / Teclado)
+                if (isMobile) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMobileSegmentPill(
+                          index: 0,
+                          icon: Icons.grid_view_rounded,
+                          label: 'Catálogo',
+                          badgeCount: null,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildMobileSegmentPill(
+                          index: 1,
+                          icon: Icons.receipt_long_rounded,
+                          label: 'Ticket',
+                          badgeCount: cart.isNotEmpty ? cart.length : null,
+                          trailingAmount: cart.isNotEmpty ? '\$${pos.currentTotal.toStringAsFixed(0)}' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildMobileSegmentPill(
+                          index: 2,
+                          icon: Icons.dialpad_rounded,
+                          label: 'Teclado',
+                          badgeCount: null,
+                        ),
+                      ),
+                    ],
                   ),
+                ],
               ],
             ),
           ),
         ),
       ),
       body: SafeArea(
-        child: Column(
+        child: isMobile
+            // ==========================================
+            // DISEÑO MÓVIL OPTIMIZADO PARA CELULARES
+            // ==========================================
+            ? Column(
+                children: [
+                  Expanded(
+                    child: IndexedStack(
+                      index: _mobileTab,
+                      children: [
+                        // Pestaña 0: Catálogo a pantalla completa
+                        _buildMobileCatalogTab(inv, pos),
+                        // Pestaña 1: Ticket a pantalla completa
+                        _buildMobileTicketTab(pos),
+                        // Pestaña 2: Teclado táctil a pantalla completa
+                        _buildMobileKeypadTab(pos),
+                      ],
+                    ),
+                  ),
+                  // Banner de Anuncio en Nivel Gratuito
+                  AdBannerWidget(
+                    onRemoveAdsPressed: widget.onNavigateToModules,
+                  ),
+                ],
+              )
+            // ==========================================
+            // DISEÑO PARA TABLETS Y PANTALLAS GRANDES (SPLIT VIEW)
+            // ==========================================
+            : Column(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        // Lado Izquierdo: Catálogo
+                        if (_showCatalog)
+                          Expanded(
+                            flex: 6,
+                            child: _buildTabletCatalogPanel(inv),
+                          ),
+
+                        // Lado Derecho: Carrito / Ticket Actual
+                        Expanded(
+                          flex: _showCatalog ? 5 : 10,
+                          child: _buildTabletTicketPanel(pos, cart),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Teclado Numérico y Botón de Cobro Fijo al Fondo (Tablet)
+                  NumericKeypad(
+                    onCheckoutPressed: _openCheckoutDialog,
+                  ),
+
+                  // Banner de Anuncio en Nivel Gratuito
+                  AdBannerWidget(
+                    onRemoveAdsPressed: widget.onNavigateToModules,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // WIDGETS AUXILIARES PARA CELULARES
+  // ==========================================
+
+  Widget _buildMobileSegmentPill({
+    required int index,
+    required IconData icon,
+    required String label,
+    int? badgeCount,
+    String? trailingAmount,
+  }) {
+    final isSelected = _mobileTab == index;
+    return InkWell(
+      onTap: () => setState(() => _mobileTab = index),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF4F46E5) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Icon(icon, size: 16, color: isSelected ? Colors.white : const Color(0xFF475569)),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : const Color(0xFF334155),
+              ),
+            ),
+            if (badgeCount != null) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : const Color(0xFF4F46E5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  trailingAmount ?? '$badgeCount',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected ? const Color(0xFF4F46E5) : Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileCatalogTab(InventoryProvider inv, PosProvider pos) {
+    final cart = pos.currentCart;
+    final totalItems = cart.fold<int>(0, (sum, i) => sum + i.quantity.toInt());
+
+    return Stack(
+      children: [
+        Column(
+          children: [
+            // Barra de búsqueda rápida
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+              child: SizedBox(
+                height: 40,
+                child: TextField(
+                  onChanged: inv.setSearchQuery,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar entre ${inv.products.length} productos...',
+                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                    prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF64748B)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Selector de Categorías Horizontal
+            SizedBox(
+              height: 44,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                itemCount: inv.categories.length,
+                itemBuilder: (context, i) {
+                  final cat = inv.categories[i];
+                  final isSelected = inv.selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(cat, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFF4F46E5),
+                      labelStyle: TextStyle(color: isSelected ? Colors.white : const Color(0xFF475569)),
+                      onSelected: (_) => inv.setCategory(cat),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // Grid de Productos Móvil (2 columnas con suficiente espacio táctil)
             Expanded(
+              child: GridView.builder(
+                padding: EdgeInsets.fromLTRB(10, 6, 10, cart.isNotEmpty ? 80 : 10),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.18,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: inv.products.length,
+                itemBuilder: (context, index) {
+                  final product = inv.products[index];
+                  return _buildProductCard(product);
+                },
+              ),
+            ),
+          ],
+        ),
+
+        // Barra flotante inferior de cobro rápido cuando hay productos en el ticket
+        if (cart.isNotEmpty)
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0x40000000),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  // Lado Izquierdo: Catálogo de productos rápidos
-                  if (_showCatalog)
-                    Expanded(
-                      flex: 6,
-                      child: Container(
-                        color: const Color(0xFFF8FAFC),
-                        child: Column(
-                          children: [
-                            // Barra de búsqueda rápida en POS
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                              child: SizedBox(
-                                height: 38,
-                                child: TextField(
-                                  onChanged: inv.setSearchQuery,
-                                  decoration: InputDecoration(
-                                    hintText: 'Buscar producto o código...',
-                                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                                    prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Selector de Categorías
-                            SizedBox(
-                              height: 44,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                itemCount: inv.categories.length,
-                                itemBuilder: (context, i) {
-                                  final cat = inv.categories[i];
-                                  final isSelected = inv.selectedCategory == cat;
-                                  return Padding(
-                                    padding: const EdgeInsets.only(right: 6),
-                                    child: ChoiceChip(
-                                      label: Text(cat, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                      selected: isSelected,
-                                      selectedColor: const Color(0xFF4F46E5),
-                                      labelStyle: TextStyle(color: isSelected ? Colors.white : const Color(0xFF475569)),
-                                      onSelected: (_) => inv.setCategory(cat),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            // Grid de Productos de Tiendita
-                            Expanded(
-                              child: GridView.builder(
-                                padding: const EdgeInsets.all(8),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 1.15,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                ),
-                                itemCount: inv.products.length,
-                                itemBuilder: (context, index) {
-                                  final product = inv.products[index];
-                                  return InkWell(
-                                    onTap: () => _onProductTapped(product),
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Text(product.iconEmoji, style: const TextStyle(fontSize: 22)),
-                                                  if (product.isByWeight) ...[
-                                                    const SizedBox(width: 4),
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(0xFFFEF3C7),
-                                                        borderRadius: BorderRadius.circular(4),
-                                                      ),
-                                                      child: const Text('Granel', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                              Text(
-                                                '\$${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w900,
-                                                  fontSize: 14,
-                                                  color: Color(0xFF059669),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            product.name,
-                                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            product.isByWeight ? 'Venta por peso / importe' : 'Stock: ${product.stock.toInt()} pzs',
-                                            style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-
-                  // Lado Derecho: Carrito / Ticket Actual
+                    child: Text(
+                      '$totalItems',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
-                    flex: _showCatalog ? 5 : 10,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        border: Border(left: BorderSide(color: Color(0xFFE2E8F0))),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Ticket #${pos.activeTicketIndex + 1}', style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.bold)),
+                        Text('\$${pos.currentTotal.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 17)),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setState(() => _mobileTab = 1),
+                    icon: const Icon(Icons.receipt_long, color: Colors.white, size: 16),
+                    label: const Text('Ver Ticket', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF334155),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _openCheckoutDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Cobrar', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMobileTicketTab(PosProvider pos) {
+    final cart = pos.currentCart;
+
+    if (cart.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.shopping_cart_outlined, size: 64, color: Color(0xFFCBD5E1)),
+              const SizedBox(height: 12),
+              const Text(
+                'El ticket actual está vacío',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Toca productos del catálogo o ingresa importes con el teclado para comenzar la venta.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () => setState(() => _mobileTab = 0),
+                icon: const Icon(Icons.grid_view_rounded, size: 18),
+                label: const Text('Explorar Catálogo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Lista de artículos del ticket a ancho completo
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: cart.length,
+            separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            itemBuilder: (context, index) {
+              final item = cart[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    // Emoji del producto
+                    Text(item.product.iconEmoji, style: const TextStyle(fontSize: 24)),
+                    const SizedBox(width: 10),
+                    // Nombre y precio unitario
+                    Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Lista de artículos en el ticket
-                          Expanded(
-                            child: cart.isEmpty
-                                ? const Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.shopping_cart_outlined, size: 40, color: Color(0xFFCBD5E1)),
-                                        SizedBox(height: 8),
-                                        Text('Ticket vacío', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
-                                        Text('Toca productos o ingresa importe', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
-                                      ],
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                                    itemCount: cart.length,
-                                    separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                                    itemBuilder: (context, index) {
-                                      final item = cart[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 4),
-                                        child: Row(
-                                          children: [
-                                            // Cantidad + Controles
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF1F5F9),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  InkWell(
-                                                    onTap: () => pos.decrementQuantity(index),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      child: Text('-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                                    ),
-                                                  ),
-                                                  Text('${item.quantity.toInt()}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
-                                                  InkWell(
-                                                    onTap: () => pos.incrementQuantity(index),
-                                                    child: const Padding(
-                                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            // Nombre
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(item.product.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), maxLines: 1),
-                                                  Text('\$${item.customPrice.toStringAsFixed(2)} c/u', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                                                ],
-                                              ),
-                                            ),
-                                            // Subtotal
-                                            Text(
-                                              '\$${item.subtotal.toStringAsFixed(2)}',
-                                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F172A)),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
+                          Text(
+                            item.product.name,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                          Text(
+                            '\$${item.customPrice.toStringAsFixed(2)} c/u',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                           ),
                         ],
+                      ),
+                    ),
+                    // Controles de cantidad táctiles grandes
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          InkWell(
+                            onTap: () => pos.decrementQuantity(index),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              child: Text('-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          ),
+                          Text(
+                            '${item.quantity.toInt()}',
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                          ),
+                          InkWell(
+                            onTap: () => pos.incrementQuantity(index),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Subtotal
+                    Text(
+                      '\$${item.subtotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Panel de Cobro Fijo al fondo del ticket móvil
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 8,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${cart.length} artículos en ticket:',
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '\$${pos.currentTotal.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF059669)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() => _mobileTab = 0),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('+ Agregar Más'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4F46E5),
+                      side: const BorderSide(color: Color(0xFF4F46E5)),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _openCheckoutDialog,
+                      icon: const Icon(Icons.payments_outlined, size: 20),
+                      label: Text(
+                        'COBRAR \$${pos.currentTotal.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF059669),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-            // Teclado Numérico y Botón de Cobro Fijo al Fondo (Zona del Pulgar)
-            NumericKeypad(
-              onCheckoutPressed: _openCheckoutDialog,
+  Widget _buildMobileKeypadTab(PosProvider pos) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            color: const Color(0xFFEEF2FF),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFF4F46E5), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ticket actual: ${pos.currentCart.length} productos (\$${pos.currentTotal.toStringAsFixed(2)})',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF3730A3)),
+                  ),
+                ),
+                if (pos.currentCart.isNotEmpty)
+                  TextButton(
+                    onPressed: () => setState(() => _mobileTab = 1),
+                    child: const Text('Ver Ticket', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+              ],
             ),
+          ),
+          NumericKeypad(
+            onCheckoutPressed: _openCheckoutDialog,
+          ),
+        ],
+      ),
+    );
+  }
 
-            // Banner de Anuncio en Nivel Gratuito
-            AdBannerWidget(
-              onRemoveAdsPressed: widget.onNavigateToModules,
+  // ==========================================
+  // WIDGETS AUXILIARES PARA TABLET / DESKTOP
+  // ==========================================
+
+  Widget _buildTabletCatalogPanel(InventoryProvider inv) {
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      child: Column(
+        children: [
+          // Barra de búsqueda rápida
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+            child: SizedBox(
+              height: 38,
+              child: TextField(
+                onChanged: inv.setSearchQuery,
+                decoration: InputDecoration(
+                  hintText: 'Buscar producto o código...',
+                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Selector de Categorías
+          SizedBox(
+            height: 44,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              itemCount: inv.categories.length,
+              itemBuilder: (context, i) {
+                final cat = inv.categories[i];
+                final isSelected = inv.selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(cat, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF4F46E5),
+                    labelStyle: TextStyle(color: isSelected ? Colors.white : const Color(0xFF475569)),
+                    onSelected: (_) => inv.setCategory(cat),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Grid de Productos de Tiendita
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 1.15,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+              ),
+              itemCount: inv.products.length,
+              itemBuilder: (context, index) {
+                final product = inv.products[index];
+                return _buildProductCard(product);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabletTicketPanel(PosProvider pos, List<dynamic> cart) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: cart.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.shopping_cart_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                        SizedBox(height: 8),
+                        Text('Ticket vacío', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
+                        Text('Toca productos o ingresa importe', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    itemCount: cart.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    itemBuilder: (context, index) {
+                      final item = cart[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  InkWell(
+                                    onTap: () => pos.decrementQuantity(index),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      child: Text('-', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    ),
+                                  ),
+                                  Text('${item.quantity.toInt()}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                                  InkWell(
+                                    onTap: () => pos.incrementQuantity(index),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      child: Text('+', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(item.product.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700), maxLines: 1),
+                                  Text('\$${item.customPrice.toStringAsFixed(2)} c/u', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '\$${item.subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF0F172A)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductCard(Product product) {
+    return InkWell(
+      onTap: () => _onProductTapped(product),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Text(product.iconEmoji, style: const TextStyle(fontSize: 22)),
+                    if (product.isByWeight) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('Granel', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                      ),
+                    ],
+                  ],
+                ),
+                Text(
+                  '\$${product.price.toStringAsFixed(product.price % 1 == 0 ? 0 : 2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    color: Color(0xFF059669),
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              product.name,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              product.isByWeight ? 'Venta por peso / importe' : 'Stock: ${product.stock.toInt()} pzs',
+              style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8)),
             ),
           ],
         ),
