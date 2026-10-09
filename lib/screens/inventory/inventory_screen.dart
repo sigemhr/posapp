@@ -3,9 +3,23 @@ import 'package:provider/provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../models/product.dart';
 import '../../data/tiendita_dataset.dart';
+import '../pos/widgets/camera_barcode_scanner_screen.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
+
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   void _showImportCatalogDialog(BuildContext context) {
     final inv = context.read<InventoryProvider>();
@@ -165,10 +179,34 @@ class InventoryScreen extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Código de Barras',
                       hintText: 'Escanea o ingresa EAN-13',
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.search, size: 20),
-                        tooltip: 'Buscar en catálogo maestro',
-                        onPressed: () => tryAutocomplete(barcodeCtrl.text.trim()),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.camera_alt, color: Color(0xFF4F46E5), size: 20),
+                            tooltip: 'Escanear con cámara',
+                            onPressed: () async {
+                              final code = await Navigator.push<String>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const CameraBarcodeScannerScreen(
+                                    continuous: false,
+                                    title: 'Escanear Código para Producto',
+                                  ),
+                                ),
+                              );
+                              if (code != null && code.trim().isNotEmpty) {
+                                barcodeCtrl.text = code.trim();
+                                tryAutocomplete(code.trim());
+                              }
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.search, size: 20),
+                            tooltip: 'Buscar en catálogo maestro',
+                            onPressed: () => tryAutocomplete(barcodeCtrl.text.trim()),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -309,10 +347,49 @@ class InventoryScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
-              onChanged: inv.setSearchQuery,
+              controller: _searchCtrl,
+              onChanged: (val) {
+                inv.setSearchQuery(val);
+                setState(() {});
+              },
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre o código de barras...',
                 prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_searchCtrl.text.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear, size: 18, color: Color(0xFF94A3B8)),
+                        tooltip: 'Limpiar búsqueda',
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          inv.setSearchQuery('');
+                          setState(() {});
+                        },
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF4F46E5), size: 20),
+                      tooltip: 'Escanear producto con cámara',
+                      onPressed: () async {
+                        final code = await Navigator.push<String>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CameraBarcodeScannerScreen(
+                              continuous: false,
+                              title: 'Buscar Producto en Inventario',
+                            ),
+                          ),
+                        );
+                        if (code != null && code.trim().isNotEmpty) {
+                          _searchCtrl.text = code.trim();
+                          inv.setSearchQuery(code.trim());
+                          setState(() {});
+                        }
+                      },
+                    ),
+                  ],
+                ),
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

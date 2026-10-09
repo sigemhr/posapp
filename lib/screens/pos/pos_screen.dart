@@ -11,6 +11,7 @@ import 'widgets/numeric_keypad.dart';
 import 'widgets/change_dialog.dart';
 import 'widgets/receipt_dialog.dart';
 import 'widgets/ad_banner_widget.dart';
+import 'widgets/camera_barcode_scanner_screen.dart';
 
 class PosScreen extends StatefulWidget {
   final VoidCallback onNavigateToModules;
@@ -44,6 +45,31 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  Future<void> _openCameraScanner({bool continuous = false}) async {
+    final moduleProvider = context.read<ModuleProvider>();
+    if (!moduleProvider.isUnlocked('barcode_scanner')) {
+      _showModuleLockedDialog('Lector de Códigos de Barra', 'barcode_scanner', 99.0);
+      return;
+    }
+
+    final scannedCode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CameraBarcodeScannerScreen(
+          continuous: continuous,
+          title: continuous ? 'Caja Rápida (Escaneo Continuo)' : 'Escanear con Cámara',
+          onBarcodeScanned: (code) {
+            _processBarcode(code);
+          },
+        ),
+      ),
+    );
+
+    if (scannedCode != null && !continuous && mounted) {
+      _processBarcode(scannedCode);
+    }
+  }
+
   void _onBarcodeScanPressed() {
     final moduleProvider = context.read<ModuleProvider>();
     if (!moduleProvider.isUnlocked('barcode_scanner')) {
@@ -63,100 +89,149 @@ class _PosScreenState extends State<PosScreen> {
             Text('Escanear Código de Barras', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Ingresa el código o usa tu pistola lectora USB:', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-            const SizedBox(height: 8),
-            TextField(
-              controller: codeCtrl,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                hintText: 'Ej. 7501055300075',
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Botón destacado: Abrir cámara
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _openCameraScanner(continuous: false);
+                },
+                icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                label: const Text('Abrir Cámara del Dispositivo', style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-              onSubmitted: (code) {
-                Navigator.pop(ctx);
-                _processBarcode(code.trim());
-              },
-            ),
-            const SizedBox(height: 12),
-            const Text('Pruebas rápidas (artículos comunes):', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                ActionChip(
-                  label: const Text('🥤 Coca 600ml', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501055300075');
-                  },
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _openCameraScanner(continuous: true);
+                },
+                icon: const Icon(Icons.repeat, color: Color(0xFF4F46E5), size: 18),
+                label: const Text('Modo Continuo (Caja Rápida)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFF4F46E5)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                ActionChip(
-                  label: const Text('🧀 Doritos 58g', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501011165432');
-                  },
+              ),
+              const SizedBox(height: 14),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Text('O pistola USB / teclado', style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: codeCtrl,
+                autofocus: false,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Ej. 7501055300075',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.arrow_forward, color: Color(0xFF4F46E5)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode(codeCtrl.text.trim());
+                    },
+                  ),
                 ),
-                ActionChip(
-                  label: const Text('🍞 Pan Bimbo', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501000100011');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('🥛 Leche Lala', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501020511122');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('🍜 Maruchan', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501055307777');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('📓 Cuaderno Scribe', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501037800016');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('🖊️ Pluma Bic', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501004100017');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('🟣 Fabuloso 1L', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('7501035912344');
-                  },
-                ),
-                ActionChip(
-                  label: const Text('🔋 Pilas AA', style: TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _processBarcode('041333001051');
-                  },
-                ),
-              ],
-            ),
-          ],
+                onSubmitted: (code) {
+                  Navigator.pop(ctx);
+                  _processBarcode(code.trim());
+                },
+              ),
+              const SizedBox(height: 12),
+              const Text('Pruebas rápidas (artículos comunes):', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    label: const Text('🥤 Coca 600ml', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501055300075');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🧀 Doritos 58g', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501011165432');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🍞 Pan Bimbo', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501000100011');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🥛 Leche Lala', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501020511122');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🍜 Maruchan', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501055307777');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('📓 Cuaderno Scribe', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501037800016');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🖊️ Pluma Bic', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501004100017');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🟣 Fabuloso 1L', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('7501035912344');
+                    },
+                  ),
+                  ActionChip(
+                    label: const Text('🔋 Pilas AA', style: TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _processBarcode('041333001051');
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cerrar')),
@@ -166,7 +241,7 @@ class _PosScreenState extends State<PosScreen> {
               _processBarcode(codeCtrl.text.trim());
             },
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
-            child: const Text('Escanear'),
+            child: const Text('Buscar Código'),
           ),
         ],
       ),

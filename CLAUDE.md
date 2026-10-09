@@ -105,9 +105,18 @@ puntozen_pos/
     - Conserva la vista dual dividida (*split view*): Catálogo a la izquierda (`flex: 6`), Ticket en tiempo real a la derecha (`flex: 5`) y Teclado Numérico fijo al fondo.
 - **Multi-Ticket**: Manejo de `Ticket 1` y `Ticket 2 (En Espera)` mediante `PosProvider.switchTicketTab(index)`.
 - **Buscador en Tiempo Real**: Input de búsqueda sobre los filtros de categoría para encontrar cualquier producto rápidamente.
-- **Lector de Código de Barras**:
-  - Si el código existe en el inventario local, lo agrega al ticket.
-  - Si el código no está en el inventario local pero existe en el **Catálogo Maestro**, lo importa al inventario y lo agrega al ticket automáticamente.
+- **Lector de Código de Barras (Cámara + Pistola USB + Manual)**:
+  - Implementado con el paquete nativo `mobile_scanner: ^7.4.2` (`CameraBarcodeScannerScreen`).
+  - **Permisos configurados**: `CAMERA` en Android (`AndroidManifest.xml`) y `NSCameraUsageDescription` en iOS (`Info.plist`).
+  - **Modos de Escaneo**:
+    - **Modo Individual (1 Escaneo)**: Cierra la cámara automáticamente al detectar el código y lo transfiere al ticket o formulario.
+    - **Modo Continuo (Caja Rápida / Supermercado)**: Mantiene la cámara abierta para escanear múltiples artículos seguidos en mostrador con feedback táctil (`HapticFeedback.heavyImpact()`), debounce de 1.5s contra lecturas dobles, linterna/flash y cambio de cámara.
+  - **Integración en POS**:
+    - Si el código existe en el inventario local, lo agrega inmediatamente al ticket con aviso flotante.
+    - Si el código no está en el inventario local pero existe en el **Catálogo Maestro**, lo importa al inventario y lo agrega al ticket automáticamente.
+  - **Integración en Inventario**:
+    - Botón de cámara en el campo de código de barras al crear un producto (autocompleta todos los datos al escanearlo con la cámara).
+    - Botón de cámara en la barra de búsqueda de inventario para localizar artículos en mostrador al instante.
 - **Venta a Granel**: Diálogo modal para especificar importe o peso en pesos mexicanos (\$10, \$15, \$17.50, \$20, \$50, o libre).
 
 ### D. Persistencia y Migración (`lib/services/storage_service.dart`)
