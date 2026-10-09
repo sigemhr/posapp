@@ -126,6 +126,34 @@ class _PosScreenState extends State<PosScreen> {
                     _processBarcode('7501055307777');
                   },
                 ),
+                ActionChip(
+                  label: const Text('📓 Cuaderno Scribe', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501037800016');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🖊️ Pluma Bic', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501004100017');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🟣 Fabuloso 1L', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('7501035912344');
+                  },
+                ),
+                ActionChip(
+                  label: const Text('🔋 Pilas AA', style: TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _processBarcode('041333001051');
+                  },
+                ),
               ],
             ),
           ],

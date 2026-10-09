@@ -78,9 +78,9 @@ puntozen_pos/
 ## 🧩 4. Módulos y Flujos de Datos Clave
 
 ### A. Catálogo Maestro estilo Eleventa (`lib/data/tiendita_dataset.dart`)
-- **Contenido**: Más de 140 productos organizados en 12 categorías:
-  - `Refrescos`, `Bebidas & Jugos`, `Botanas & Frituras`, `Galletas & Panecillos`, `Lácteos & Huevos`, `Carnes Frías`, `Abarrotes & Despensa`, `Dulces & Golosinas`, `Higiene Personal`, `Limpieza del Hogar`, `Cigarros & Fósforos`, `Granel & Mostrador`.
-- **EAN-13**: Códigos oficiales de México (prefijo `750...`).
+- **Contenido**: Más de 185 productos organizados en 14 categorías esenciales de tienditas mexicanas:
+  - `Refrescos`, `Bebidas & Jugos`, `Botanas & Frituras`, `Galletas & Panecillos`, `Lácteos & Huevos`, `Carnes Frías`, `Abarrotes & Despensa`, `Dulces & Golosinas`, `Higiene Personal`, `Limpieza del Hogar` (ampliada con servilletas, servitoallas, papel aluminio, insecticidas, franelas, jergas, guantes), `Papelería & Escolares` (cuadernos Scribe, lápices Mirado, bolígrafos Bic, gomas, sacapuntas, pegamento Pritt, Resistol, tijeras, cintas Diurex/canela, cartulinas, hojas bond), `Farmacia & Varios` (pilas alcalinas Duracell, Sal de Uvas Picot, Alka-Seltzer, Aspirina, Paracetamol, Curitas, cinta de aislar), `Cigarros & Fósforos`, `Granel & Mostrador`.
+- **EAN-13**: Códigos oficiales de México (prefijo `750...` y marcas registradas).
 - **Helpers**:
   - `searchInTienditaCatalog(query)`: Búsqueda flexible por texto, categoría o código.
   - `findInTienditaCatalogByBarcode(barcode)`: Búsqueda exacta por código de barras.
@@ -88,7 +88,7 @@ puntozen_pos/
 ### B. Inventario y Sincronización (`lib/providers/inventory_provider.dart`)
 - **`importMasterCatalog({bool overwrite})`**:
   - `overwrite = false`: Fusiona los productos del catálogo maestro que falten en el inventario actual (sin duplicar ni alterar los productos personalizados ya creados).
-  - `overwrite = true`: Restablece el inventario completo a los más de 140 productos maestros.
+  - `overwrite = true`: Restablece el inventario completo a los más de 185 productos maestros.
 - **Autocompletado en Alta de Producto**:
   - Al ingresar o escanear un código de barras en el formulario de nuevo producto (`inventory_screen.dart`), el sistema busca en el catálogo maestro y autorellena: nombre, precio sugerido, costo de compra, categoría, emoji y si es a granel.
 
@@ -102,7 +102,7 @@ puntozen_pos/
 
 ### D. Persistencia y Migración (`lib/services/storage_service.dart`)
 - Llaves en `SharedPreferences`:
-  - `puntozen_products_v2`: Clave actual de productos. Si no existe, revisa `puntozen_products_v1`; si el usuario tenía la lista previa de prueba (<=20 productos), migra e incorpora automáticamente el nuevo catálogo maestro completo sin perder datos.
+  - `puntozen_products_v3`: Clave actual de productos. Si no existe, migra automáticamente desde v2 o v1 fusionando los nuevos artículos del catálogo maestro sin pérdida de datos personalizados.
   - `puntozen_sales_v1`: Historial de tickets y ventas.
   - `puntozen_customers_v1`: Clientes de la libreta de fiado.
   - `puntozen_payments_v1`: Abonos y pagos de deuda.

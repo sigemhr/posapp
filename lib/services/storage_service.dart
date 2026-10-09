@@ -7,8 +7,9 @@ import '../models/credit_payment.dart';
 import '../data/tiendita_dataset.dart';
 
 class StorageService {
-  static const String _keyProducts = 'puntozen_products_v2';
-  static const String _keyLegacyProducts = 'puntozen_products_v1';
+  static const String _keyProducts = 'puntozen_products_v3';
+  static const String _keyLegacyProductsV2 = 'puntozen_products_v2';
+  static const String _keyLegacyProductsV1 = 'puntozen_products_v1';
   static const String _keySales = 'puntozen_sales_v1';
   static const String _keyCustomers = 'puntozen_customers_v1';
   static const String _keyPayments = 'puntozen_payments_v1';
@@ -18,26 +19,29 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Intentar cargar v2
+      // Intentar cargar v3
       String? jsonStr = prefs.getString(_keyProducts);
 
-      // Si no existe v2, revisar si existía v1
+      // Si no existe v3, revisar si existía v2 o v1 para migrar
       if (jsonStr == null || jsonStr.isEmpty) {
-        final legacyStr = prefs.getString(_keyLegacyProducts);
+        final legacyStr = prefs.getString(_keyLegacyProductsV2) ?? prefs.getString(_keyLegacyProductsV1);
         if (legacyStr != null && legacyStr.isNotEmpty) {
           final List<dynamic> legacyList = jsonDecode(legacyStr) as List<dynamic>;
           final legacyProducts = legacyList.map((item) => Product.fromJson(item as Map<String, dynamic>)).toList();
           
-          // Si tenía la lista vieja (<= 20 productos de prueba), actualizamos al catálogo completo de tiendita
           if (legacyProducts.length <= 20) {
             await saveProducts(defaultProducts);
             return defaultProducts;
           } else {
-            // Fusionar productos personalizados con el nuevo catálogo maestro
+            // Fusionar productos del usuario con los nuevos artículos del catálogo maestro
             final existingBarcodes = legacyProducts.where((p) => p.barcode != null).map((p) => p.barcode!).toSet();
+            final existingNames = legacyProducts.map((p) => p.name.toLowerCase().trim()).toSet();
             final merged = List<Product>.from(legacyProducts);
+
             for (final item in tienditaMasterCatalog) {
-              if (item.barcode != null && !existingBarcodes.contains(item.barcode)) {
+              final hasBarcode = item.barcode != null && existingBarcodes.contains(item.barcode);
+              final hasName = existingNames.contains(item.name.toLowerCase().trim());
+              if (!hasBarcode && !hasName) {
                 merged.add(item);
               }
             }

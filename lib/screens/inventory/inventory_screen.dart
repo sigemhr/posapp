@@ -30,7 +30,7 @@ class InventoryScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Base de datos precargada con más de 140 artículos más vendidos en tienditas de abarrotes de México.',
+              'Base de datos precargada con más de 185 artículos más vendidos en tienditas de abarrotes de México.',
               style: TextStyle(fontSize: 13, color: Color(0xFF334155)),
             ),
             const SizedBox(height: 12),
@@ -43,13 +43,13 @@ class InventoryScreen extends StatelessWidget {
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('✅ Códigos de barra reales (Coca-Cola, Bimbo, Sabritas, etc.)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('✅ Códigos de barra reales (Coca-Cola, Bimbo, Sabritas, Scribe, Bic, etc.)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                   SizedBox(height: 4),
                   Text('✅ Precios de venta y costos de compra promedio sugeridos', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                   SizedBox(height: 4),
-                  Text('✅ Clasificado en 10 categorías comunes de abarrotes', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('✅ Papelería escolar (cuadernos, lápices, plumas, pegamento, tijeras)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                   SizedBox(height: 4),
-                  Text('✅ Configuración lista para venta a granel y mostrador', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text('✅ Limpieza completa, granel, farmacia de emergencia y pilas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
